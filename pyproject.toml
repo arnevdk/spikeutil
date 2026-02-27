@@ -1,0 +1,29 @@
+[project]
+name = "spikeutil"
+version = "0.0.1"
+authors = [
+  { name="Arne Van Den Kerchove", email="arne.vandenkerchove@kuleuven.be" },
+]
+description = "Tools to handle, analyze and visualize spiking neural data"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+[project.urls]
+Homepage = "https://github.com/arnevdk/spikeutil"
+Issues = "https://github.com/arnevdk/spikeutil"
+
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+dependencies = [
+	"spikeinterface",
+	"elephant",
+	"plotly",
+	"pandas"
+]
