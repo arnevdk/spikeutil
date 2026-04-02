@@ -9,25 +9,27 @@ from spikeutil.core import sorting_to_neo
 from spikeutil.math import smoothen, wasserstein_centroid
 
 
-def normalized_coactivity(sorting, bin_width=0.05, t_stop=None):
+def binned_spike_train(sorting, bin_width=0.005, t_stop=None, normalize_width=True):
     seg = sorting_to_neo(sorting)
     if t_stop is not None:
         t_stop = t_stop * pq.s
     bst = BinnedSpikeTrain(seg.spiketrains, bin_size=bin_width * pq.s, t_stop=t_stop)
-    bst = bst.to_array()
-    coactivity = np.mean(bst, axis=0) / len(seg.spiketrains)
-    time = np.arange(len(coactivity)) * bin_width + bin_width / 2
-    return time, coactivity
+    bst = bst.to_array().T
+    if normalize_width:
+        bst = bst / bin_width
+    time = np.arange(len(bst)) * bin_width + bin_width / 2
+    return time, bst
 
 
 def log_isi_hist(st, bin_width_log=0.05, min_log=-3, max_log=2, pdf=True, smooth=True):
     isi = np.diff(st)
     logbins = 10 ** np.arange(min_log, max_log, bin_width_log)
     hist, bin_edges = np.histogram(isi, bins=logbins)
-    if pdf:
-        hist = hist / np.sum(hist)
     if smooth:
         hist = smoothen(hist)
+    if pdf:
+        hist = hist / np.sum(hist)
+        hist = np.clip(hist, a_min=1e-6, a_max=1)
     return hist, bin_edges
 
 
@@ -65,16 +67,28 @@ def log_isi_hists(sorting, method="all", **kwargs):
     )
 
 
-def firing_rate_psd(
-    sorting, kernel_sigma=0.02, sfreq=1000, nperseg=2**16, normalize=True
+def firing_rate(
+    sorting, kernel_sigma=0.02, sfreq=500, normalize=True, coactivity=False, t_stop=None
 ):
+    if t_stop is not None:
+        t_stop = t_stop * pq.s
     seg = sorting_to_neo(sorting)
-
     kernel = GaussianKernel(sigma=kernel_sigma * pq.s)
-    fr = instantaneous_rate(seg.spiketrains, 1 / sfreq * pq.s, kernel=kernel)
-    fr = fr.T
-    fr = fr / np.mean(fr, axis=1)[:, np.newaxis]
-    fr = np.mean(fr, axis=0)
+    fr = instantaneous_rate(
+        seg.spiketrains,
+        1 / sfreq * pq.s,
+        kernel=kernel,
+        t_stop=t_stop,
+        pool_spike_trains=coactivity,
+    )
+    fr = np.array(fr).squeeze()
+    if normalize and coactivity:
+        fr = fr / len(seg.spiketrains)
+    return fr, sfreq
 
+
+def firing_rate_psd(fr, sfreq, nperseg=2**14, normalize=True):
     f, Pxx_den = scipy.signal.welch(fr, sfreq, nperseg=nperseg)
+    if normalize:
+        Pxx_den = Pxx_den / np.var(fr)
     return f, Pxx_den

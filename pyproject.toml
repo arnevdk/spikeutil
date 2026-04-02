@@ -25,5 +25,6 @@ dependencies = [
 	"spikeinterface",
 	"elephant",
 	"plotly",
-	"pandas"
+	"pandas",
+	"blockinversegpfa @ git+https://github.com/CausalityInMotion/BlockInverseGPFA.git#egg=blockinversegpfa"
 ]

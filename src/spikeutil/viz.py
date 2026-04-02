@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from spikeutil.core import spikes_as_df
 
 
-def plot_chip(analyzer, chip_width, chip_height, color=None):
+def plot_chip(analyzer, chip_width, chip_height, cell_type=None, colormap=None):
     fig = go.Figure()
 
     probe = analyzer.get_probe().to_dataframe()
@@ -19,14 +19,21 @@ def plot_chip(analyzer, chip_width, chip_height, color=None):
     fig.add_trace(trace1)
 
     unit_pos = analyzer.get_extension("unit_locations").data["unit_locations"]
-    trace2 = go.Scatter(
-        mode="markers",
-        x=unit_pos[:, 0],
-        y=unit_pos[:, 1],
-        marker=dict(color=color),
-        hovertext=analyzer.unit_ids,
-    )
-    fig.add_trace(trace2)
+    if cell_type is None:
+        cell_type = np.array(["Unit"] * len(unit_pos))
+    for t in np.unique(cell_type):
+        marker = None
+        if colormap is not None:
+            marker = dict(color=colormap[t])
+        trace = go.Scatter(
+            mode="markers",
+            x=unit_pos[cell_type == t, 0],
+            y=unit_pos[cell_type == t, 1],
+            name=t,
+            hovertext=analyzer.unit_ids,
+            marker=marker,
+        )
+        fig.add_trace(trace)
 
     fig.update_xaxes(range=[0, chip_width])
     fig.update_yaxes(
