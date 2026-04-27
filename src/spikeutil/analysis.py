@@ -1,24 +1,8 @@
 import numpy as np
 import quantities as pq
 import scipy.signal
-from elephant.conversion import BinnedSpikeTrain
-from elephant.kernels import GaussianKernel
-from elephant.statistics import instantaneous_rate
-
 from spikeutil.core import sorting_to_neo
 from spikeutil.math import smoothen, wasserstein_centroid
-
-
-def binned_spike_train(sorting, bin_width=0.005, t_stop=None, normalize_width=True):
-    seg = sorting_to_neo(sorting)
-    if t_stop is not None:
-        t_stop = t_stop * pq.s
-    bst = BinnedSpikeTrain(seg.spiketrains, bin_size=bin_width * pq.s, t_stop=t_stop)
-    bst = bst.to_array().T
-    if normalize_width:
-        bst = bst / bin_width
-    time = np.arange(len(bst)) * bin_width + bin_width / 2
-    return time, bst
 
 
 def log_isi_hist(st, bin_width_log=0.05, min_log=-3, max_log=2, pdf=True, smooth=True):
