@@ -1,9 +1,8 @@
 import numpy as np
 import quantities as pq
 import scipy.signal
-from elephant.conversion import BinnedSpikeTrain
-from elephant.kernels import GaussianKernel
-from elephant.statistics import instantaneous_rate
+from elephant.kernel import GaussianKernel
+from elephnt.statistics import instantaneous_rate
 
 from spikeutil.core import sorting_to_neo
 
