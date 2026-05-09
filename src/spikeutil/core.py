@@ -6,7 +6,6 @@ from elephant.kernels import GaussianKernel
 from elephant.statistics import instantaneous_rate
 
 
-
 def sorting_to_neo(sorting):
 
     t_stop = 0
@@ -50,6 +49,7 @@ def binned_firing_rate(sorting, bin_width=0.005, t_stop=None, normalize_width=Tr
     time = np.arange(len(bst)) * bin_width + bin_width / 2
     return time, bst
 
+
 def inst_firing_rate(
     sorting, kernel_sigma=0.02, sfreq=500, normalize=True, coactivity=False, t_stop=None
 ):
@@ -68,5 +68,3 @@ def inst_firing_rate(
     if normalize and coactivity:
         fr = fr / len(seg.spiketrains)
     return fr, sfreq
-
-

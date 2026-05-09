@@ -48,26 +48,30 @@ def plot_chip(analyzer, chip_width, chip_height, cell_type=None, colormap=None):
     return fig
 
 
-def plot_spikes(analyzer, t_max=60, color=None):
+def plot_spike_raster(analyzer, order=None, t_max=60, cell_type=None, colormap=None):
     sorting = analyzer.sorting
     spikes = spikes_as_df(sorting)
     spikes = spikes[spikes["time"] <= t_max]
-    if color is not None:
-        color = spikes["unit_index"].map(lambda i: color[i])
 
-    x_pos = analyzer.get_extension("unit_locations").get_data()[:, 0]
-    order = np.argsort(np.argsort(-x_pos))
-    y = [order[i] for i in spikes["unit_index"]]
+    if cell_type is None:
+        cell_type = ["spikes"]
+        colormap = {"spikes": "black"}
+
+    if order is None:
+        order = np.arange(len(analyzer.unit_ids))
+    y = np.array([order[i] for i in spikes["unit_index"]])
 
     fig = go.Figure()
-    trace = go.Scatter(
-        x=spikes["time"],
-        y=y,
-        mode="markers",
-        marker=dict(size=2, color="black"),
-        marker_color=color,
-    )
-    fig.add_trace(trace)
+    for ct in np.unique(cell_type):
+        ct_idc = cell_type[spikes["unit_index"]] == ct
+        trace = go.Scatter(
+            x=spikes["time"].iloc[ct_idc],
+            y=y[ct_idc],
+            mode="markers",
+            marker=dict(size=2, color=colormap[ct]),
+            name=ct,
+        )
+        fig.add_trace(trace)
     fig.update_layout(
         xaxis_title="Time (s)",
         yaxis_title="Unit (X pos. rank)",

@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.optimize
+import scipy.signal
 import scipy.stats
 
 
@@ -15,24 +16,36 @@ def wasserstein_centroid(X, bounds=None):
     return res.x
 
 
-def smoothen(x):
-    domain = np.arange(0, len(x))
-    x = [_local_weighted_regression(x0, domain, x) for x0 in domain]
-    x = np.array(x)
-    return x
+def smoothen(y, lambda_=1):
+    x = np.arange(len(y))
+    spl = scipy.interpolate.make_smoothing_spline(x, y, lam=lambda_)
+    y = spl(x)
+    return y
+    # print(y)
+    # y[y < lower_bound] = 0
+    # return y
+    # y = scipy.signal.savgol_filter(y, 10, 4)
+    # return y
 
 
-def _local_weighted_regression_weights(x0, X, tau):
-    return np.exp(np.sum((X - x0) ** 2, axis=1) / (-2 * (tau**2)))
-
-
-def _local_weighted_regression(x0, X, Y, tau=1):
-    # add bias term
-    x0 = np.r_[1, x0]
-    X = np.c_[np.ones(len(X)), X]
-
-    # fit model: normal equations with kernel
-    xw = X.T * _local_weighted_regression_weights(x0, X, tau)
-    theta = np.linalg.pinv(xw @ X) @ xw @ Y
-    # predict
-    return x0 @ theta
+# def smoothen(x):
+#    domain = np.arange(0, len(x))
+#    x = [_local_weighted_regression(x0, domain, x) for x0 in domain]
+#    x = np.array(x)
+#    return x
+#
+#
+# def _local_weighted_regression_weights(x0, X, tau):
+#    return np.exp(np.sum((X - x0) ** 2, axis=1) / (-2 * (tau**2)))
+#
+#
+# def _local_weighted_regression(x0, X, Y, tau=1):
+#    # add bias term
+#    x0 = np.r_[1, x0]
+#    X = np.c_[np.ones(len(X)), X]
+#
+#    # fit model: normal equations with kernel
+#    xw = X.T * _local_weighted_regression_weights(x0, X, tau)
+#    theta = np.linalg.pinv(xw @ X) @ xw @ Y
+#    # predict
+#    return x0 @ theta
