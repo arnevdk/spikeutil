@@ -56,7 +56,9 @@ def compute_network_burst_features(analyzer):
         bursts_fr = []
         bursts_t = []
 
-        t, bst = binned_spike_train(analyzer.sorting, normalize_width=False)
+        t, bst = binned_spike_train(
+            analyzer.sorting, normalize_width=False, bin_width=0.001
+        )
         bst = np.sum(bst, axis=1)
         s = np.arange(len(t))
 
@@ -65,8 +67,10 @@ def compute_network_burst_features(analyzer):
             s_start = s[t >= t_start][0]
             if len(s[t >= t_stop]) == 0:
                 s_stop = s[-1]
+                if t_start == t_stop:
+                    continue
             else:
-                s_stop = s[t >= t_stop][0]
+                s_stop = s[t >= t_stop][0] + 1
 
             burst_fr = bst[s_start:s_stop]
             burst_t = t[s_start:s_stop]
