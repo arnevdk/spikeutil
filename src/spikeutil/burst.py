@@ -111,12 +111,18 @@ def network_burst_params(
     hists = np.vstack(hists)
 
     # Find minimal N with clear separation between intra- and inter-burst intervals
+    valley_idx = -1
     for Ni, hist in enumerate(hists):
         hist = np.log10(hist)
         valley_idc, props = scipy.signal.find_peaks(-hist, prominence=prominence)
         if len(valley_idc):
             valley_idx = valley_idc[0]
             break
+
+    if valley_idx == -1:
+        raise RuntimeError(
+            "Unable to determine optimal burst identification parameters, probably no bursting behavior present"
+        )
     N = N_range[Ni]
     isi_N_cutoff = x[valley_idx]
     return N, isi_N_cutoff
