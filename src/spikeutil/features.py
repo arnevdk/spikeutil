@@ -94,14 +94,14 @@ def compute_network_burst_features(analyzer):
         burst_features = {
             "burst_N": 1,
             "burst_isi_N_cutoff": duration,
-            "burst_rate": 0,
-            "burst_duration_mean": 0,
-            "burst_duration_var": 0,
-            "burst_total_time": 0,
+            "burst_rate": 0.,
+            "burst_duration_mean": 0.,
+            "burst_duration_var": 0.,
+            "burst_total_time": 0.,
             "burst_inter_burst_interval_mean": duration,
-            "burst_decay_time": 0,
-            "burst_rise_time": 0,
-            "burst_firing_rate_abs": 0,
+            "burst_decay_time": 0.,
+            "burst_rise_time": 0.,
+            "burst_firing_rate_abs": 0.,
             "burst_firing_rate_norm": 0,
         }
 
