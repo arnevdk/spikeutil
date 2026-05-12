@@ -77,8 +77,9 @@ def detect_tonic_units(sorting, censor_period=0.250, quantile=0.75):
 def network_burst_params(
     sorting,
     exclude_tonic=True,
-    Ns=32,
-    prominence=0.1,
+    Ns=128,
+    prominence=0.01,
+    height=1e-3,
     tonic_kwargs=None,
     logisi_kwargs=None,
 ):
@@ -111,21 +112,29 @@ def network_burst_params(
     hists = np.vstack(hists)
 
     # Find minimal N with clear separation between intra- and inter-burst intervals
-    valley_idx = -1
+    max_p = 0
+    isi_cutoff = 0
+    N = -1
     for Ni, hist in enumerate(hists):
+        hist = hist.copy()
         hist = np.log10(hist)
-        valley_idc, props = scipy.signal.find_peaks(-hist, prominence=prominence)
+        valley_idc, props = scipy.signal.find_peaks(-hist, prominence=0)
         if len(valley_idc):
-            valley_idx = valley_idc[0]
-            break
+            prom = props["prominences"]
+            valley_idx = valley_idc[np.argmax(prom)]
+            prom = np.max(prom)
+            prom = prom / np.sqrt((x[valley_idx] * N_range[Ni]))
 
-    if valley_idx == -1:
+            if prom > max_p:
+                print(props["prominences"])
+                max_p = prom
+                isi_cutoff = x[valley_idx]
+                N = N_range[Ni]
+    if N == -1:
         raise RuntimeError(
             "Unable to determine optimal burst identification parameters, probably no bursting behavior present"
         )
-    N = N_range[Ni]
-    isi_N_cutoff = x[valley_idx]
-    return N, isi_N_cutoff
+    return N, isi_cutoff
 
 
 def detect_network_bursts(sorting, N=10, isi_N_cutoff=0.5):
@@ -139,4 +148,27 @@ def detect_network_bursts(sorting, N=10, isi_N_cutoff=0.5):
 
     bursts[:, 1] += N - 1
     bursts = st[bursts]
+    bursts = merge_events(bursts)
     return bursts
+
+
+def merge_events(events):
+    if len(events) == 0:
+        return events
+
+    events = events[np.argsort(events[:, 0])]
+    starts = events[:, 0]
+    ends = events[:, 1]
+
+    cummax_end = np.maximum.accumulate(ends)
+
+    new_group = np.empty(len(events), dtype=bool)
+    new_group[0] = True
+    new_group[1:] = starts[1:] > cummax_end[:-1]
+
+    idx = np.flatnonzero(new_group)
+
+    merged_starts = starts[idx]
+    merged_ends = np.maximum.reduceat(ends, idx)
+
+    return np.column_stack((merged_starts, merged_ends))

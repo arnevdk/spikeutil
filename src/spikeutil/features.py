@@ -45,10 +45,10 @@ def compute_network_burst_features(analyzer):
         features["burst_duration_mean"] = np.mean(burst_duration)
         features["burst_duration_var"] = np.var(burst_duration)
         features["burst_total_time"] = np.sum(burst_duration) / duration
-        features["burst_inter_burst_interval_mean"] = np.mean(
+        features["burst_inter_burst_interval_mean"] = np.nanmean(
             bursts[1:, 0] - bursts[:-1, 1]
         )
-        features["burst_inter_burst_interval_var"] = np.var(
+        features["burst_inter_burst_interval_var"] = np.nanvar(
             bursts[1:, 0] - bursts[:-1, 1]
         )
 
@@ -86,22 +86,23 @@ def compute_network_burst_features(analyzer):
                 }
             )
         burst_features = {
-            k: np.mean([bf[k] for bf in burst_features])
+            k: np.nanmean([bf[k] for bf in burst_features])
             for k, v in burst_features[0].items()
         }
     except RuntimeError:
         print(f"No bursts detected")
         burst_features = {
             "burst_N": 1,
-            "burst_isi_N_cutoff": duration,
-            "burst_rate": 0.,
-            "burst_duration_mean": 0.,
-            "burst_duration_var": 0.,
-            "burst_total_time": 0.,
-            "burst_inter_burst_interval_mean": duration,
-            "burst_decay_time": 0.,
-            "burst_rise_time": 0.,
-            "burst_firing_rate_abs": 0.,
+            "burst_isi_N_cutoff": 0,
+            "burst_rate": 0,
+            "burst_duration_mean": 0,
+            "burst_duration_var": 0,
+            "burst_total_time": 0,
+            "burst_inter_burst_interval_mean": 0,
+            "burst_inter_burst_interval_var": 0,
+            "burst_decay_time": 0,
+            "burst_rise_time": 0,
+            "burst_firing_rate_abs": 0,
             "burst_firing_rate_norm": 0,
         }
 
@@ -114,7 +115,7 @@ def compute_unit_features(analyzer):
 
     features = []
     acgs = np.diagonal(analyzer.get_extension("correlograms").get_data()[0]).T
-    t, bst = binned_spike_train(analyzer.sorting, normalize_width=False)
+    t, bsts = binned_spike_train(analyzer.sorting, normalize_width=False)
     duration = (
         sorting.to_spike_vector()["sample_index"][-1] / sorting.sampling_frequency
     )
@@ -122,6 +123,7 @@ def compute_unit_features(analyzer):
     for i, uid in enumerate(analyzer.unit_ids):
         st = analyzer.sorting.get_unit_spike_train_in_seconds(uid)
         isi = np.diff(st)
+        bst = bsts[:, i]
 
         fr = len(st) / duration
 
@@ -169,8 +171,8 @@ def compute_unit_features(analyzer):
                 # TODO: theta modulation index with wide acgs
                 "unit_acg_bust_index_royer2012": burst_index_royer2012,
                 # TODO: burst index doublets
-                "unit_fr_var_coeff": np.var(bst[i]) / fr,
-                "unit_fr_gini": gini(bst[i]),
+                "unit_fr_var_coeff": np.var(bst) / fr,
+                "unit_fr_gini": gini(bst),
                 "unit_fr_instability": np.mean(np.abs(np.diff(bst))) / fr,
             }
         )
