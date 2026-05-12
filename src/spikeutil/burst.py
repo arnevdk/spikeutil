@@ -126,7 +126,6 @@ def network_burst_params(
             prom = prom / np.sqrt((x[valley_idx] * N_range[Ni]))
 
             if prom > max_p:
-                print(props["prominences"])
                 max_p = prom
                 isi_cutoff = x[valley_idx]
                 N = N_range[Ni]

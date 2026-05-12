@@ -172,7 +172,7 @@ def compute_unit_features(analyzer):
                 "unit_acg_bust_index_royer2012": burst_index_royer2012,
                 # TODO: burst index doublets
                 "unit_fr_var_coeff": np.var(bst) / fr,
-                "unit_fr_gini": gini(bst),
+                # "unit_fr_gini": gini(bst),
                 "unit_fr_instability": np.mean(np.abs(np.diff(bst))) / fr,
             }
         )
