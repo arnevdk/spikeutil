@@ -65,8 +65,6 @@ def log_isi_hists(sorting, method="all", **kwargs):
 
 
 def detect_tonic_units(sorting, censor_period=None, min_firing_rate=1):
-    import matplotlib.pyplot as plt
-    import spikeinterface.widgets as sw
 
     # Calculate tonic firing rates
     spike_vec = sorting.to_spike_vector()
@@ -75,8 +73,10 @@ def detect_tonic_units(sorting, censor_period=None, min_firing_rate=1):
     fr_total = count / duration
 
 
-    sw.plot_rasters(sorting.select_units(sorting.unit_ids[np.argsort(fr_total)]), time_range=[0,60],figsize=(16,3))
-    plt.show()
+    #import matplotlib.pyplot as plt
+    #import spikeinterface.widgets as sw
+    #sw.plot_rasters(sorting.select_units(sorting.unit_ids[np.argsort(fr_total)]), time_range=[0,60],figsize=(16,3))
+    #plt.show()
     
     quiet_units = sorting.unit_ids[fr_total>min_firing_rate]
     sorting = sorting.select_units(quiet_units)
@@ -118,24 +118,22 @@ def detect_tonic_units(sorting, censor_period=None, min_firing_rate=1):
     fr_tonic = count / duration
     fr_max = 1/censor_period
 
-    sw.plot_rasters(sorting, time_range=[0,60],figsize=(16,3))
-    plt.ylim([None, len(sorting.unit_ids)])
-    plt.show()
+    #sw.plot_rasters(sorting, time_range=[0,60],figsize=(16,3))
+    #plt.ylim([None, len(sorting.unit_ids)])
+    #plt.show()
+
+    #sw.plot_rasters(sorting.select_units(sorting.unit_ids[np.argsort(fr_total)]), time_range=[0,60],figsize=(16,3))
+    #plt.show()
+
+    #sw.plot_rasters(sorting.select_units(sorting.unit_ids[np.argsort(fr_tonic)]), time_range=[0,60],figsize=(16,3))
+    #plt.show()
 
 
+    #sw.plot_rasters(sorting_censored.select_units(sorting_censored.unit_ids[np.argsort(fr_total)]), time_range=[0,60],figsize=(16,3))
+    #plt.show()
 
-    sw.plot_rasters(sorting.select_units(sorting.unit_ids[np.argsort(fr_total)]), time_range=[0,60],figsize=(16,3))
-    plt.show()
-
-    sw.plot_rasters(sorting.select_units(sorting.unit_ids[np.argsort(fr_tonic)]), time_range=[0,60],figsize=(16,3))
-    plt.show()
-
-
-    sw.plot_rasters(sorting_censored.select_units(sorting_censored.unit_ids[np.argsort(fr_total)]), time_range=[0,60],figsize=(16,3))
-    plt.show()
-
-    sw.plot_rasters(sorting_censored.select_units(sorting_censored.unit_ids[np.argsort(fr_tonic)]), time_range=[0,60],figsize=(16,3))
-    plt.show()
+    #sw.plot_rasters(sorting_censored.select_units(sorting_censored.unit_ids[np.argsort(fr_tonic)]), time_range=[0,60],figsize=(16,3))
+    #plt.show()
 
 
     score = fr_tonic/fr_max
@@ -171,33 +169,29 @@ def detect_tonic_units(sorting, censor_period=None, min_firing_rate=1):
     #plt.show()
 
     is_tonic = score > thresh
-    #is_tonic = score > np.median(score)
-    #is_tonic = score >= thresh
-    #is_tonic =  fr_tonic > np.quantile(fr_tonic,0.75)
+
+    #plt.scatter(score[~is_tonic], cv[~is_tonic], color='k', s=5)
+    #plt.scatter(score[is_tonic], cv[is_tonic], color='r', s=5)
+    #plt.xlabel('fr_tonic')
+    #plt.ylabel('cv')
+    #plt.show()
+    #
+    #sorting_censored_burst = sorting_censored.select_units(sorting_censored.unit_ids[~is_tonic])
+    #sw.plot_rasters(sorting_censored_burst, time_range=[0,60],figsize=(16,3))
+    #plt.show()
+
+    #sorting_censored_tonic = sorting_censored.select_units(sorting_censored.unit_ids[is_tonic])
+    #sw.plot_rasters(sorting_censored_tonic, time_range=[0,60],figsize=(16,3))
+    #plt.show()
 
 
-    plt.scatter(score[~is_tonic], cv[~is_tonic], color='k', s=5)
-    plt.scatter(score[is_tonic], cv[is_tonic], color='r', s=5)
-    plt.xlabel('fr_tonic')
-    plt.ylabel('cv')
-    plt.show()
-    
-    sorting_censored_burst = sorting_censored.select_units(sorting_censored.unit_ids[~is_tonic])
-    sw.plot_rasters(sorting_censored_burst, time_range=[0,60],figsize=(16,3))
-    plt.show()
+    #sorting_burst = sorting.select_units(sorting.unit_ids[~is_tonic])
+    #sw.plot_rasters(sorting_burst, time_range=[0,60],figsize=(16,3))
+    #plt.show()
 
-    sorting_censored_tonic = sorting_censored.select_units(sorting_censored.unit_ids[is_tonic])
-    sw.plot_rasters(sorting_censored_tonic, time_range=[0,60],figsize=(16,3))
-    plt.show()
-
-
-    sorting_burst = sorting.select_units(sorting.unit_ids[~is_tonic])
-    sw.plot_rasters(sorting_burst, time_range=[0,60],figsize=(16,3))
-    plt.show()
-
-    sorting_tonic = sorting.select_units(sorting.unit_ids[is_tonic])
-    sw.plot_rasters(sorting_tonic, time_range=[0,60],figsize=(16,3))
-    plt.show()
+    #sorting_tonic = sorting.select_units(sorting.unit_ids[is_tonic])
+    #sw.plot_rasters(sorting_tonic, time_range=[0,60],figsize=(16,3))
+    #plt.show()
 
 
 
@@ -241,7 +235,6 @@ def network_burst_params(
     isi_cutoff = 0
     N = 0
     max_prom = 0
-    prev_prom = 0
     proms = np.zeros(len(N_range))
     for Ni, hist in enumerate(hists):
         hist = hist.copy()
@@ -273,10 +266,10 @@ def network_burst_params(
             if prom < max_prom-prominence_tol:
                 break
 
-    import matplotlib.pyplot as plt
-    plt.semilogx(N_range, proms)
-    plt.axvline(N)
-    plt.show()
+    #import matplotlib.pyplot as plt
+    #plt.semilogx(N_range, proms)
+    #plt.axvline(N)
+    #plt.show()
     if N == 0:
         raise RuntimeError(
             "Unable to determine optimal burst identification parameters, probably no bursting behavior present"
@@ -301,7 +294,9 @@ def detect_network_bursts(sorting, N=10, isi_N_cutoff=0.5, merge=True):
     bursts = st[bursts]
     if merge:
         bursts = merge_events(bursts)
-
+    
+    if len(bursts) <= 3:
+        raise RuntimeError("Insufficient number of bursts detected")
     return bursts
 
 

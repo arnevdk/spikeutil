@@ -92,18 +92,18 @@ def compute_network_burst_features(analyzer):
     except RuntimeError:
         print(f"No bursts detected")
         burst_features = {
-            "burst_N": 1,
-            "burst_isi_N_cutoff": 0,
-            "burst_rate": 0,
-            "burst_duration_mean": 0,
-            "burst_duration_var": 0,
-            "burst_total_time": 0,
-            "burst_inter_burst_interval_mean": 0,
-            "burst_inter_burst_interval_var": 0,
-            "burst_decay_time": 0,
-            "burst_rise_time": 0,
-            "burst_firing_rate_abs": 0,
-            "burst_firing_rate_norm": 0,
+            "burst_N": np.nan,
+            "burst_isi_N_cutoff": np.nan,
+            "burst_rate": np.nan,
+            "burst_duration_mean": np.nan,
+            "burst_duration_var": np.nan,
+            "burst_total_time": np.nan,
+            "burst_inter_burst_interval_mean": np.nan,
+            "burst_inter_burst_interval_var": np.nan,
+            "burst_decay_time": np.nan,
+            "burst_rise_time": np.nan,
+            "burst_firing_rate_abs": np.nan,
+            "burst_firing_rate_norm": np.nan,
         }
 
     features.update(burst_features)
@@ -111,6 +111,8 @@ def compute_network_burst_features(analyzer):
 
 
 def compute_unit_features(analyzer):
+    #TODO: population coupling
+
     sorting = analyzer.sorting
 
     features = []
