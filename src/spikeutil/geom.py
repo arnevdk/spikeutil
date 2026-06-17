@@ -1,9 +1,11 @@
 import numpy as np
+from factor_rotation import rotate_factors
 from sklearn.decomposition import PCA
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
 from spikeutil.analysis import firing_rate
+from spikeutil.core import inst_firing_rate
 
 
 def latent_dynamics(X, n_components=3, method="pca"):
@@ -52,3 +54,34 @@ def avalanches(bst, mode="duration", norm=True):
         raise ValueError
 
     return x, y
+
+
+def factor_analysis(sorting, n_components=8, fr_kwargs=None):
+    if fr_kwargs is None:
+        fr_kwargs = dict()
+    fr_kwargs.setdefault("kernel_sigma", 0.05)
+    fr_kwargs.setdefault("sfreq", 100)
+    X, sfreq = inst_firing_rate(sorting, **fr_kwargs)
+
+    Xt = StandardScaler(with_mean=False).fit_transform(X)
+    Xt = X
+
+    R = np.corrcoef(Xt, rowvar=False)
+    shrinkage = 1e-6
+    R = (1 - shrinkage) * R + shrinkage * np.eye(len(R))
+
+    eigvals, eigvecs = np.linalg.eigh(R)
+    idx = np.argsort(eigvals)[::-1]
+    eigvals, eigvecs = eigvals[idx], eigvecs[:, idx]
+    L = eigvecs[:, :n_components] * np.sqrt(eigvals[:n_components])
+
+    L, T = rotate_factors(L, "oblimin", 0, "oblique")
+    # L,T = rotate_factors(L, 'varimax')
+
+    idx = np.argsort(-np.sum(L**2, axis=0))
+    L = L[:, idx]
+
+    Xt = Xt @ L
+    Xt = np.sign(np.mean(X, axis=1) @ Xt) * Xt
+
+    return Xt, L

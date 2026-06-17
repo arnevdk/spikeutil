@@ -1,22 +1,23 @@
 import numpy as np
-import pandas as pd
 import plotly.graph_objects as go
 
 from spikeutil.core import spikes_as_df
 
 
-def plot_chip(analyzer, chip_width, chip_height, cell_type=None, colormap=None):
-    fig = go.Figure()
+def mea_traces(analyzer, cell_type=None, colormap=None, legend=True):
+    traces = []
 
     probe = analyzer.get_probe().to_dataframe()
-    trace1 = go.Scatter(
+    trace1 = go.Scattergl(
         x=probe["x"],
         y=probe["y"],
         mode="markers",
         marker=dict(color="black", size=1),
         name="channels",
+        legendgroup="channels",
+        showlegend=legend,
     )
-    fig.add_trace(trace1)
+    traces.append(trace1)
 
     unit_pos = analyzer.get_extension("unit_locations").data["unit_locations"]
     if cell_type is None:
@@ -25,30 +26,32 @@ def plot_chip(analyzer, chip_width, chip_height, cell_type=None, colormap=None):
         marker = None
         if colormap is not None:
             marker = dict(color=colormap[t])
-        trace = go.Scatter(
+        trace = go.Scattergl(
             mode="markers",
             x=unit_pos[cell_type == t, 0],
             y=unit_pos[cell_type == t, 1],
             name=t,
             hovertext=analyzer.unit_ids,
             marker=marker,
+            legendgroup=t,
+            showlegend=legend,
         )
-        fig.add_trace(trace)
+        traces.append(trace)
 
-    fig.update_xaxes(range=[0, chip_width])
-    fig.update_yaxes(
-        range=[0, chip_height],
-        scaleanchor="x",
-        scaleratio=1,
-    )
-    fig.update_layout(
-        xaxis_title="X pos. (μm)",
-        yaxis_title="Y pos. (μm)",
-    )
-    return fig
+    # fig.update_xaxes(range=[0, chip_width])
+    # fig.update_yaxes(
+    #    range=[0, chip_height],
+    #    scaleanchor="x",
+    #    scaleratio=1,
+    # )
+    # fig.update_layout(
+    #    xaxis_title="X pos. (μm)",
+    #    yaxis_title="Y pos. (μm)",
+    # )
+    return traces
 
 
-def plot_spike_raster(analyzer, order=None, t_max=60, cell_type=None, colormap=None):
+def spike_raster_traces(analyzer, order=None, t_max=60, cell_type=None, colormap=None, legend=True):
     sorting = analyzer.sorting
     spikes = spikes_as_df(sorting)
     spikes = spikes[spikes["time"] <= t_max]
@@ -61,19 +64,17 @@ def plot_spike_raster(analyzer, order=None, t_max=60, cell_type=None, colormap=N
         order = np.arange(len(analyzer.unit_ids))
     y = np.array([order[i] for i in spikes["unit_index"]])
 
-    fig = go.Figure()
+    traces = []
     for ct in np.unique(cell_type):
         ct_idc = cell_type[spikes["unit_index"]] == ct
-        trace = go.Scatter(
+        trace = go.Scattergl(
             x=spikes["time"].iloc[ct_idc],
             y=y[ct_idc],
             mode="markers",
             marker=dict(size=2, color=colormap[ct]),
+            legendgroup=ct,
+            showlegend=legend,
             name=ct,
         )
-        fig.add_trace(trace)
-    fig.update_layout(
-        xaxis_title="Time (s)",
-        yaxis_title="Unit (X pos. rank)",
-    )
-    return fig
+        traces.append(trace)
+    return traces

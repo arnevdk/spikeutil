@@ -26,5 +26,6 @@ dependencies = [
 	"elephant",
 	"plotly",
 	"pandas",
-	"blockinversegpfa @ git+https://github.com/CausalityInMotion/BlockInverseGPFA.git#egg=blockinversegpfa"
+	"blockinversegpfa @ git+https://github.com/CausalityInMotion/BlockInverseGPFA.git#egg=blockinversegpfa".
+	"pot"
 ]

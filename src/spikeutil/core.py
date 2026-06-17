@@ -1,4 +1,5 @@
 import neo
+import numpy as np
 import pandas as pd
 import quantities as pq
 from elephant.conversion import BinnedSpikeTrain
@@ -51,20 +52,18 @@ def binned_firing_rate(sorting, bin_width=0.005, t_stop=None, normalize_width=Tr
 
 
 def inst_firing_rate(
-    sorting, kernel_sigma=0.02, sfreq=500, normalize=True, coactivity=False, t_stop=None
+    sorting, kernel_sigma=0.1, sfreq=500, coactivity=False, t_max=None
 ):
-    if t_stop is not None:
-        t_stop = t_stop * pq.s
+    if t_max is not None:
+        t_max = t_max * pq.s
     seg = sorting_to_neo(sorting)
     kernel = GaussianKernel(sigma=kernel_sigma * pq.s)
     fr = instantaneous_rate(
         seg.spiketrains,
         1 / sfreq * pq.s,
         kernel=kernel,
-        t_stop=t_stop,
+        t_stop=t_max,
         pool_spike_trains=coactivity,
     )
     fr = np.array(fr).squeeze()
-    if normalize and coactivity:
-        fr = fr / len(seg.spiketrains)
     return fr, sfreq
