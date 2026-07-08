@@ -104,7 +104,6 @@ def detect_tonic_units(sorting, censor_period=None, min_firing_rate=1):
             avg_isi = np.median(np.diff(st))
             avg_isis.append(avg_isi)
         censor_period = np.nanmedian(avg_isis)*3
-    print(censor_period)
 
     # Decimate spikes within bursts
     sorting_censored = sc.remove_duplicated_spikes(

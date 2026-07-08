@@ -56,7 +56,7 @@ def avalanches(bst, mode="duration", norm=True):
     return x, y
 
 
-def factor_analysis(sorting, n_components=8, fr_kwargs=None):
+def factor_analysis(sorting, n_components=8, fr_kwargs=None, normalize=False, group=None):
     if fr_kwargs is None:
         fr_kwargs = dict()
     fr_kwargs.setdefault("kernel_sigma", 0.05)
@@ -64,7 +64,11 @@ def factor_analysis(sorting, n_components=8, fr_kwargs=None):
     X, sfreq = inst_firing_rate(sorting, **fr_kwargs)
 
     Xt = StandardScaler(with_mean=False).fit_transform(X)
-    Xt = X
+
+    if group is not None:
+        groups = np.unique(group)
+        for g in groups:
+            Xt[:,group==g] /= np.sqrt(np.count_nonzero(group==g))
 
     R = np.corrcoef(Xt, rowvar=False)
     shrinkage = 1e-6
@@ -83,5 +87,8 @@ def factor_analysis(sorting, n_components=8, fr_kwargs=None):
 
     Xt = Xt @ L
     Xt = np.sign(np.mean(X, axis=1) @ Xt) * Xt
+
+    if normalize:
+        Xt = StandardScaler(with_mean=False).fit_transform(Xt)
 
     return Xt, L

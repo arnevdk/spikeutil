@@ -15,6 +15,7 @@ def mea_traces(analyzer, cell_type=None, colormap=None, legend=True):
         marker=dict(color="black", size=1),
         name="channels",
         legendgroup="channels",
+        text=probe['contact_ids'],
         showlegend=legend,
     )
     traces.append(trace1)
@@ -31,7 +32,7 @@ def mea_traces(analyzer, cell_type=None, colormap=None, legend=True):
             x=unit_pos[cell_type == t, 0],
             y=unit_pos[cell_type == t, 1],
             name=t,
-            hovertext=analyzer.unit_ids,
+            text=analyzer.unit_ids,
             marker=marker,
             legendgroup=t,
             showlegend=legend,
@@ -51,10 +52,11 @@ def mea_traces(analyzer, cell_type=None, colormap=None, legend=True):
     return traces
 
 
-def spike_raster_traces(analyzer, order=None, t_max=60, cell_type=None, colormap=None, legend=True):
+def spike_raster_traces(analyzer, order=None, t_max=None, cell_type=None, colormap=None, legend=True):
     sorting = analyzer.sorting
     spikes = spikes_as_df(sorting)
-    spikes = spikes[spikes["time"] <= t_max]
+    if t_max is not None:
+        spikes = spikes[spikes["time"] <= t_max]
 
     if cell_type is None:
         cell_type = ["spikes"]
