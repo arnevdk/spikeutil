@@ -1,11 +1,9 @@
 import numpy as np
-import ot
 import scipy.ndimage
 import scipy.signal.windows
 import scipy.stats
 import spikeinterface.curation as sc
 import spikeinterface.metrics as sm
-from kneed import KneeLocator
 
 from spikeutil.math import smoothen, wasserstein_centroid
 
