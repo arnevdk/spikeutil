@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 from spikeutil.core import spikes_as_df
 
 
-def mea_traces(analyzer, cell_type=None, colormap=None, legend=True):
+def mea_traces(analyzer, cell_type=None, colormap=None, legend=True,order=None):
     traces = []
 
     probe = analyzer.get_probe().to_dataframe()
@@ -12,7 +12,7 @@ def mea_traces(analyzer, cell_type=None, colormap=None, legend=True):
         x=probe["x"],
         y=probe["y"],
         mode="markers",
-        marker=dict(color="black", size=1),
+        marker = dict(size=2,color='white',line=dict(width=0.5,color='Black')),
         name="channels",
         legendgroup="channels",
         text=probe['contact_ids'],
@@ -23,10 +23,12 @@ def mea_traces(analyzer, cell_type=None, colormap=None, legend=True):
     unit_pos = analyzer.get_extension("unit_locations").data["unit_locations"]
     if cell_type is None:
         cell_type = np.array(["Unit"] * len(unit_pos))
-    for t in np.unique(cell_type):
-        marker = None
+    if order is None:
+        order = np.unique(cell_type)
+    for t in order:
+        marker = dict(size=5,line=dict(width=0.5,color='Black'))
         if colormap is not None:
-            marker = dict(color=colormap[t])
+            marker['color']=colormap[t]
         trace = go.Scattergl(
             mode="markers",
             x=unit_pos[cell_type == t, 0],
@@ -39,16 +41,6 @@ def mea_traces(analyzer, cell_type=None, colormap=None, legend=True):
         )
         traces.append(trace)
 
-    # fig.update_xaxes(range=[0, chip_width])
-    # fig.update_yaxes(
-    #    range=[0, chip_height],
-    #    scaleanchor="x",
-    #    scaleratio=1,
-    # )
-    # fig.update_layout(
-    #    xaxis_title="X pos. (μm)",
-    #    yaxis_title="Y pos. (μm)",
-    # )
     return traces
 
 
