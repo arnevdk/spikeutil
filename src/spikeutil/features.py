@@ -138,7 +138,7 @@ def compute_unit_features(analyzer):
         try:
             params = fit_acg(lags_pos, acg_pos)
         except RuntimeError as e:
-            warnings.warn(e)
+            warnings.warn(str(e))
             params = init_acg_fit_params(lags_pos, acg_pos)
 
         acg_baseline = np.mean(acg[(lags >= 40) & (lags <= 50)])
