@@ -9,7 +9,7 @@ from sklearn.metrics import r2_score
 from spikeutil.analysis import binned_spike_train
 from spikeutil.burst import (detect_network_bursts, detect_tonic_units,
                              network_burst_params)
-from spikeutil.core import sorting_to_neo
+from spikeutil.core import inst_firing_rate, sorting_to_neo
 
 
 def compute_qm_features(analyzer):
@@ -23,6 +23,7 @@ def compute_qm_features(analyzer):
 
 def compute_network_burst_features(analyzer):
     sorting = analyzer.sorting
+    n_units = len(sorting.unit_ids)
     features = dict()
     duration = (
         sorting.to_spike_vector()["sample_index"][-1] / sorting.sampling_frequency
@@ -52,66 +53,49 @@ def compute_network_burst_features(analyzer):
             bursts[1:, 0] - bursts[:-1, 1]
         )
 
-        # Get burst firing_rate_features
-        bursts_fr = []
-        bursts_t = []
-
-        t, bst = binned_spike_train(
-            analyzer.sorting, normalize_width=False, bin_width=0.001
-        )
-        bst = np.sum(bst, axis=1)
-        s = np.arange(len(t))
-
-        burst_features = []
+        intra_burst_spikes = 0
+        intra_burst_time = 0
         for t_start, t_stop in bursts:
-            s_start = s[t >= t_start][0]
-            if len(s[t >= t_stop]) == 0:
-                s_stop = s[-1]
-                if t_start == t_stop:
-                    continue
-            else:
-                s_stop = s[t >= t_stop][0] + 1
+            intra_burst_sorting = sorting.time_slice(t_start, t_stop)
+            n_spikes = intra_burst_sorting.count_total_num_spikes()
+            intra_burst_spikes += n_spikes
+            intra_burst_time += t_stop - t_start
+        features["burst_intra_burst_firing_rate"] = intra_burst_spikes / (
+            intra_burst_time * n_units
+        )
 
-            burst_fr = bst[s_start:s_stop]
-            burst_t = t[s_start:s_stop]
-            bursts_fr.append(burst_fr)
-            bursts_t.append(burst_t)
+        inter_burst_spikes = 0
+        inter_burst_time = 0
+        inter_bursts = np.hstack([bursts[:-1, [1]], bursts[1:, [0]]])
+        for t_start, t_stop in inter_bursts:
+            inter_burst_sorting = sorting.time_slice(t_start, t_stop)
+            n_spikes = inter_burst_sorting.count_total_num_spikes()
+            inter_burst_spikes += n_spikes
+            inter_burst_time += t_stop - t_start
+        features["burst_inter_burst_firing_rate"] = inter_burst_spikes / (
+            inter_burst_time * n_units
+        )
 
-            burst_features.append(
-                {
-                    "burst_decay_time": burst_t[-1] - burst_t[np.argmax(burst_fr)],
-                    "burst_rise_time": burst_t[np.argmax(burst_fr)] - burst_t[0],
-                    "burst_firing_rate_abs": np.sum(burst_fr) / duration,
-                    "burst_firing_rate_norm": np.sum(burst_fr) / (t_stop - t_start),
-                }
+        rise_times = []
+        decay_times = []
+        for t_start, t_stop in bursts:
+            intra_burst_sorting = sorting.time_slice(t_start, t_stop)
+            fr, sfreq = inst_firing_rate(
+                intra_burst_sorting, coactivity=True, normalize=True
             )
-        burst_features = {
-            k: np.nanmean([bf[k] for bf in burst_features])
-            for k, v in burst_features[0].items()
-        }
+            time = np.arange(len(fr)) / sfreq + t_start
+            t_peak = time[np.argmax(fr)]
+            rise_times.append(t_peak - t_start)
+            decay_times.append(t_stop - t_peak)
+        features["burst_rise_time"] = np.mean(rise_times)
+        features["burst_decay_time"] = np.mean(decay_times)
+        return features
     except RuntimeError:
-        print(f"No bursts detected")
-        burst_features = {
-            "burst_N": np.nan,
-            "burst_isi_N_cutoff": np.nan,
-            "burst_rate": np.nan,
-            "burst_duration_mean": np.nan,
-            "burst_duration_var": np.nan,
-            "burst_total_time": np.nan,
-            "burst_inter_burst_interval_mean": np.nan,
-            "burst_inter_burst_interval_var": np.nan,
-            "burst_decay_time": np.nan,
-            "burst_rise_time": np.nan,
-            "burst_firing_rate_abs": np.nan,
-            "burst_firing_rate_norm": np.nan,
-        }
-
-    features.update(burst_features)
-    return features
+        return dict()
 
 
 def compute_unit_features(analyzer):
-    #TODO: population coupling
+    # TODO: population coupling
 
     sorting = analyzer.sorting
 
@@ -161,18 +145,16 @@ def compute_unit_features(analyzer):
                     2 * np.abs(isi[1:] - isi[:-1]) / (isi[1:] + isi[:-1])
                 ),
                 "unit_isi_burst_mizuseki2012": np.count_nonzero(isi < 0.006) / len(isi),
-                # "unit_acg_fit_c": params[0],
+                "unit_acg_fit_c": params[0],
                 "unit_acg_fit_t_refrac": params[1],
                 "unit_acg_fit_tau_decay": params[2],
-                # "unit_acg_fit_d": params[3],
+                "unit_acg_fit_d": params[3],
                 "unit_acg_fit_tau_rise": params[4],
-                # "unit_acg_fit_h": params[5],
+                "unit_acg_fit_h": params[5],
                 "unit_acg_fit_tau_burst": params[6],
                 "unit_acg_fit_rate_asymptote": params[7],
                 "unit_acg_fit_r2": r2_score(acg_pos, acg_pred),
-                # TODO: theta modulation index with wide acgs
                 "unit_acg_bust_index_royer2012": burst_index_royer2012,
-                # TODO: burst index doublets
                 "unit_fr_var_coeff": np.var(bst) / fr,
                 # "unit_fr_gini": gini(bst),
                 "unit_fr_instability": np.mean(np.abs(np.diff(bst))) / fr,
