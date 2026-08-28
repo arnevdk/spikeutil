@@ -5,65 +5,60 @@ import scipy.stats
 import spikeinterface.curation as sc
 import spikeinterface.metrics as sm
 import ot
-
+import scipy.ndimage
 from spikeutil.math import smoothen, wasserstein_centroid
 
 
-def log_isi_hist(
-    st, bin_width_log=0.05, min_log=-3, max_log=2, pdf=True, smooth=True, N=1
-):
-    isi = st[N:] - st[:-N]
-    logbins = 10 ** np.arange(min_log, max_log, bin_width_log)
-    hist, bin_edges = np.histogram(isi, bins=logbins)
-    if smooth:
-        filt_len = 16
-        filt = scipy.signal.windows.gaussian(filt_len, 1)
-        hist = np.convolve(hist, filt, mode="same")
-    if pdf:
-        hist = hist / np.sum(hist)
-        hist = np.clip(hist, a_min=1e-6, a_max=1)
-    return hist, bin_edges
+def detect_bursts(
+        sorting,
+        method='participation',
+        remove_tonic=False,
+        merge_interval=0.200,
+        min_burst_duration=0.300,
+        tonic_kwargs=None,
+        method_kwargs=None
+    ):
+      
+    if remove_tonic:
+        if tonic_kwargs is None:
+            tonic_kwargs=dict()
+        tonic_units = detect_tonic_units(sorting, **tonic_kwargs)
+        print(f'Tonic units: {tonic_units}')
+
+    if method_kwargs is None:
+        method_kwargs=dict()
+
+    if method == 'isi_N':
+        N, isi_cutoff = isi_N_params(sorting, **method_kwargs)
+        bursts = detect_bursts_isi_N(sorting, N=N, isi_cutoff = isi_cutoff)
+    elif method == 'participation':
+        bursts = detect_bursts_participation(sorting, **method_kwargs)
+    else:
+        ValueError(f"Method must be in ['isi_N', 'participation']")
+ 
+    bursts = merge_bursts(bursts, max_interval=merge_interval)
+    burst_duration = bursts[:,1]-bursts[:,0]
+    bursts = bursts[burst_duration >= min_burst_duration]
+    if len(bursts) <= 3:
+        raise RuntimeError("Insufficient number of bursts detected")
+
+    return bursts
+
+def merge_bursts(bursts, max_interval=0.200):
+    if not len(bursts):
+        return bursts
+    new_bursts = [bursts[0]]
+    for i in range(1,len(bursts)):
+        if bursts[i][0] - new_bursts[-1][1] <= max_interval:
+            new_bursts[-1][1] = bursts[i][1]
+        else:
+            new_bursts.append(bursts[i])
+    return np.array(new_bursts)
+    
 
 
-def log_isi_hists(sorting, method="all", **kwargs):
-    if method == "wasserstein":
-        if kwargs is None:
-            kwargs = dict()
-        kwargs["pdf"] = True
 
-    if method in ["wasserstein", "mean", "all"]:
-        hists = []
-        for unit_id in sorting.get_unit_ids():
-            st = sorting.get_unit_spike_train_in_seconds(unit_id)
-            hist, bin_edges = log_isi_hist(st, **kwargs)
-            hists.append(hist)
-        hists = np.vstack(hists)
-        if method == "mean":
-            hist = np.mean(hists, axis=0)
-            return hist, bin_edges
-        elif method == "wasserstein":
-            #bounds = [(0, 1)] * hists.shape[1]
-            #hist = wasserstein_centroid(hists, bounds)
-            n = hists.shape[1]
-            M = ot.utils.dist0(n)
-            M /= M.max()
-            hist = ot.barycenter(hists.T,M,1e-3)
-            return hist, bin_edges
-        return hists, bin_edges
-    elif method == "coactivity":
-        co_spike_train = []
-        for unit_id in sorting.get_unit_ids():
-            unit_spike_train = sorting.get_unit_spike_train_in_seconds(unit_id)
-            co_spike_train.append(unit_spike_train)
-        co_spike_train = np.concatenate(co_spike_train)
-        co_spike_train = np.sort(co_spike_train)
-        return log_isi_hist(co_spike_train, **kwargs)
-    raise ValueError(
-        "method should be one of 'all', 'mean', 'wasserstein', 'coactivity'"
-    )
-
-
-def detect_tonic_units(sorting, censor_period=None, min_firing_rate=1):
+def detect_tonic_units(sorting, censor_period=None, min_firing_rate=1, score_thresh=2):
 
     # Calculate tonic firing rates
     spike_vec = sorting.to_spike_vector()
@@ -106,7 +101,9 @@ def detect_tonic_units(sorting, censor_period=None, min_firing_rate=1):
 
     # Decimate spikes within bursts
     sorting_censored = sc.remove_duplicated_spikes(
-        sorting, censored_period_ms=censor_period * 10**3, method='keep_first_iterative'
+        sorting,
+        censored_period_ms=censor_period * 10**3, 
+        method='keep_first_iterative',
     )
 
     # Calculate tonic firing rates
@@ -116,24 +113,6 @@ def detect_tonic_units(sorting, censor_period=None, min_firing_rate=1):
     fr_tonic = count / duration
     fr_max = 1/censor_period
 
-    #sw.plot_rasters(sorting, time_range=[0,60],figsize=(16,3))
-    #plt.ylim([None, len(sorting.unit_ids)])
-    #plt.show()
-
-    #sw.plot_rasters(sorting.select_units(sorting.unit_ids[np.argsort(fr_total)]), time_range=[0,60],figsize=(16,3))
-    #plt.show()
-
-    #sw.plot_rasters(sorting.select_units(sorting.unit_ids[np.argsort(fr_tonic)]), time_range=[0,60],figsize=(16,3))
-    #plt.show()
-
-
-    #sw.plot_rasters(sorting_censored.select_units(sorting_censored.unit_ids[np.argsort(fr_total)]), time_range=[0,60],figsize=(16,3))
-    #plt.show()
-
-    #sw.plot_rasters(sorting_censored.select_units(sorting_censored.unit_ids[np.argsort(fr_tonic)]), time_range=[0,60],figsize=(16,3))
-    #plt.show()
-
-
     score = fr_tonic/fr_max
     score -=np.median(score)
     score /= scipy.stats.median_abs_deviation(score)
@@ -142,62 +121,57 @@ def detect_tonic_units(sorting, censor_period=None, min_firing_rate=1):
 
 
     mode = x[np.argmax(kde.pdf(x))]
-    #thresh = max(mode, np.median(score)) 
-    thresh = np.median(score)
-    thresh = 2
 
-    #diff2 = np.diff(np.diff(kde.pdf(x)))
-    #inflection = x[np.where(np.diff(np.sign(diff2)).astype(bool) & (np.diff(diff2)<0))[0]]
-    ##inflection = x[np.where(np.diff(np.sign(diff2)).astype(bool))[0]]
-    #inflection = inflection[inflection>thresh]
-    #if len(inflection):
-    #    thresh = inflection[0]
-    #print(thresh)
-
-    #plt.plot(x, kde.pdf(x), color='k')
-    #plt.axvline(inflection, color='r')
-    #plt.axvline(mode, color='gray')
-    #plt.axvline(np.median(score), color='gray', linestyle='--')
-    #plt.show()
-
-    #plt.axvline(inflection)
-    #plt.axvline(mode)
-    #plt.plot(x[:-2],diff2)
-    #plt.axhline(0)
-    #plt.show()
-
-    is_tonic = score > thresh
-
-    #plt.scatter(score[~is_tonic], cv[~is_tonic], color='k', s=5)
-    #plt.scatter(score[is_tonic], cv[is_tonic], color='r', s=5)
-    #plt.xlabel('fr_tonic')
-    #plt.ylabel('cv')
-    #plt.show()
-    #
-    #sorting_censored_burst = sorting_censored.select_units(sorting_censored.unit_ids[~is_tonic])
-    #sw.plot_rasters(sorting_censored_burst, time_range=[0,60],figsize=(16,3))
-    #plt.show()
-
-    #sorting_censored_tonic = sorting_censored.select_units(sorting_censored.unit_ids[is_tonic])
-    #sw.plot_rasters(sorting_censored_tonic, time_range=[0,60],figsize=(16,3))
-    #plt.show()
-
-
-    #sorting_burst = sorting.select_units(sorting.unit_ids[~is_tonic])
-    #sw.plot_rasters(sorting_burst, time_range=[0,60],figsize=(16,3))
-    #plt.show()
-
-    #sorting_tonic = sorting.select_units(sorting.unit_ids[is_tonic])
-    #sw.plot_rasters(sorting_tonic, time_range=[0,60],figsize=(16,3))
-    #plt.show()
-
+    is_tonic = score > score_thresh
 
 
     tonic_units = sorting.unit_ids[is_tonic]
     return np.hstack([quiet_units, tonic_units])
 
 
-def network_burst_params(
+def detect_bursts_participation(sorting, bin_width=0.100, smooth_sigma=2, thresh_Z=1):
+    n_spikes, n_units = participation_bins(sorting, bin_width=bin_width)
+    stat = n_spikes*n_units
+    stat = scipy.ndimage.gaussian_filter(stat, sigma=smooth_sigma)
+
+    spread = 1.4826*scipy.stats.median_abs_deviation(stat)
+    baseline = np.median(stat)
+    thresh=baseline+thresh_Z*spread
+
+    bursting = stat > thresh
+    bursts = np.flatnonzero(np.diff(np.r_[0, bursting.view(np.int8), 0]))
+    bursts = bursts.reshape(-1, 2)
+    bursts=bursts*bin_width
+
+    return bursts
+
+def participation_bins(sorting, bin_width=0.100):
+    spike_vector = sorting.to_spike_vector()
+    samples = spike_vector['sample_index']
+    units = spike_vector['unit_index']
+    sfreq = sorting.sampling_frequency
+    n_samples = len(samples)
+    bin_width_samples = int(bin_width*sfreq)
+    s_max = spike_vector[-1]['sample_index']
+    s=0
+    i = 0
+    n_spikes = []
+    n_units = []
+    while s < s_max:
+        bin_units = []
+        bin_n_spikes = 0
+        while i < n_samples and samples[i] < s+bin_width_samples:
+            bin_units.append(units[i])
+            bin_n_spikes +=1
+            i+=1
+        
+        bin_n_units = len(np.unique(bin_units))
+        n_spikes.append(bin_n_spikes)
+        n_units.append(bin_n_units)
+        s += bin_width_samples
+    return np.array(n_spikes), np.array(n_units)
+
+def isi_N_params(
     sorting,
     exclude_tonic=True,
     Ns=128,
@@ -277,12 +251,17 @@ def network_burst_params(
     return N, isi_cutoff
 
 
-def detect_network_bursts(sorting, N=10, isi_N_cutoff=0.5, merge=True):
+def detect_bursts_isi_N(sorting, N=10, isi_cutoff=0.5):
+    """
+    Pasquale, V., Martinoia, S. & Chiappalone, M. A self-adapting approach for
+    the detection of bursts and network bursts in neuronal cultures.
+    Journal of Computational Neuroscience 29, 213–229 (2009).
+    """
     bursts = []
     st = sorting.to_spike_vector()["sample_index"] / sorting.sampling_frequency
     isi_N = st[N:] - st[:-N]
 
-    bursting = isi_N < isi_N_cutoff
+    bursting = isi_N < isi_cutoff
 
     bursts = np.flatnonzero(np.diff(np.r_[0, bursting.view(np.int8), 0]))
     bursts = bursts.reshape(-1, 2)
@@ -290,31 +269,59 @@ def detect_network_bursts(sorting, N=10, isi_N_cutoff=0.5, merge=True):
     bursts[:,0] += 1
     bursts[:,1] += N-1
     bursts = st[bursts]
-    if merge:
-        bursts = merge_events(bursts)
-    
-    if len(bursts) <= 3:
-        raise RuntimeError("Insufficient number of bursts detected")
     return bursts
 
+def log_isi_hist(
+    st, bin_width_log=0.05, min_log=-3, max_log=2, pdf=True, smooth=True, N=1
+):
+    isi = st[N:] - st[:-N]
+    logbins = 10 ** np.arange(min_log, max_log, bin_width_log)
+    hist, bin_edges = np.histogram(isi, bins=logbins)
+    if smooth:
+        filt_len = 16
+        filt = scipy.signal.windows.gaussian(filt_len, 1)
+        hist = np.convolve(hist, filt, mode="same")
+    if pdf:
+        hist = hist / np.sum(hist)
+        hist = np.clip(hist, a_min=1e-6, a_max=1)
+    return hist, bin_edges
 
-def merge_events(events):
-    if len(events) == 0:
-        return events
 
-    events = events[np.argsort(events[:, 0])]
-    starts = events[:, 0]
-    ends = events[:, 1]
+def log_isi_hists(sorting, method="all", **kwargs):
+    if method == "wasserstein":
+        if kwargs is None:
+            kwargs = dict()
+        kwargs["pdf"] = True
 
-    cummax_end = np.maximum.accumulate(ends)
+    if method in ["wasserstein", "mean", "all"]:
+        hists = []
+        for unit_id in sorting.get_unit_ids():
+            st = sorting.get_unit_spike_train_in_seconds(unit_id)
+            hist, bin_edges = log_isi_hist(st, **kwargs)
+            hists.append(hist)
+        hists = np.vstack(hists)
+        if method == "mean":
+            hist = np.mean(hists, axis=0)
+            return hist, bin_edges
+        elif method == "wasserstein":
+            #bounds = [(0, 1)] * hists.shape[1]
+            #hist = wasserstein_centroid(hists, bounds)
+            n = hists.shape[1]
+            M = ot.utils.dist0(n)
+            M /= M.max()
+            hist = ot.barycenter(hists.T,M,1e-3)
+            return hist, bin_edges
+        return hists, bin_edges
+    elif method == "coactivity":
+        co_spike_train = []
+        for unit_id in sorting.get_unit_ids():
+            unit_spike_train = sorting.get_unit_spike_train_in_seconds(unit_id)
+            co_spike_train.append(unit_spike_train)
+        co_spike_train = np.concatenate(co_spike_train)
+        co_spike_train = np.sort(co_spike_train)
+        return log_isi_hist(co_spike_train, **kwargs)
+    raise ValueError(
+        "method should be one of 'all', 'mean', 'wasserstein', 'coactivity'"
+    )
 
-    new_group = np.empty(len(events), dtype=bool)
-    new_group[0] = True
-    new_group[1:] = starts[1:] > cummax_end[:-1]
 
-    idx = np.flatnonzero(new_group)
-
-    merged_starts = starts[idx]
-    merged_ends = np.maximum.reduceat(ends, idx)
-
-    return np.column_stack((merged_starts, merged_ends))
