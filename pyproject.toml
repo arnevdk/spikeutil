@@ -29,5 +29,6 @@ dependencies = [
 	"blockinversegpfa @ git+https://github.com/CausalityInMotion/BlockInverseGPFA.git#egg=blockinversegpfa",
 	"pot",
 	"numba",
+	"scipy",
 
 ]
