@@ -7,8 +7,7 @@ from elephant.spike_train_synchrony import spike_contrast
 from sklearn.metrics import r2_score
 
 from spikeutil.analysis import binned_spike_train
-from spikeutil.burst import (detect_network_bursts, detect_tonic_units,
-                             network_burst_params)
+from spikeutil.burst import detect_bursts
 from spikeutil.core import inst_firing_rate, sorting_to_neo
 
 
@@ -29,11 +28,9 @@ def compute_network_burst_features(analyzer, **burst_params):
         sorting.to_spike_vector()["sample_index"][-1] / sorting.sampling_frequency
     )
 
-    # Detect bursts
-    sorting_bursting = analyzer_bursting.sorting
 
     try:
-        bursts = detect_bursts(sorting_bursting, **burst_params)
+        bursts = detect_bursts(analyzer.sorting, **burst_params)
         print(f"Detected {len(bursts)} bursts")
 
         # Get burst time features
