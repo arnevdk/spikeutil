@@ -21,7 +21,7 @@ def compute_qm_features(analyzer):
     # Detect on good and mua
 
 
-def compute_network_burst_features(analyzer):
+def compute_network_burst_features(analyzer, **burst_params):
     sorting = analyzer.sorting
     n_units = len(sorting.unit_ids)
     features = dict()
@@ -30,17 +30,13 @@ def compute_network_burst_features(analyzer):
     )
 
     # Detect bursts
-    analyzer_bursting = analyzer.remove_units(detect_tonic_units(sorting))
     sorting_bursting = analyzer_bursting.sorting
 
     try:
-        N, isi_N_cutoff = network_burst_params(sorting_bursting)
-        bursts = detect_network_bursts(sorting_bursting, N, isi_N_cutoff)
+        bursts = detect_bursts(sorting_bursting, **burst_params)
         print(f"Detected {len(bursts)} bursts")
 
         # Get burst time features
-        features["burst_N"] = N
-        features["burst_isi_N_cutoff"] = isi_N_cutoff
         features["burst_rate"] = len(bursts) / duration
         burst_duration = bursts[:, 1] - bursts[:, 0]
         features["burst_duration_mean"] = np.mean(burst_duration)
