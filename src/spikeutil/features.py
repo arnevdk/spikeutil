@@ -1,14 +1,16 @@
 import warnings
-
+import quantities as pq
 import numpy as np
 import pandas as pd
 import scipy.optimize
 from elephant.spike_train_synchrony import spike_contrast
 from sklearn.metrics import r2_score
-
+import neo
 from spikeutil.analysis import binned_spike_train
 from spikeutil.burst import detect_bursts
-from spikeutil.core import inst_firing_rate, sorting_to_neo
+from spikeutil.core import inst_firing_rate, sorting_to_neo,binned_firing_rate
+from elephant.sta import spike_triggered_average
+
 
 
 def compute_qm_features(analyzer):
@@ -27,6 +29,8 @@ def compute_network_burst_features(analyzer, **burst_params):
     duration = (
         sorting.to_spike_vector()["sample_index"][-1] / sorting.sampling_frequency
     )
+    fr = len(sorting.to_spike_vector()) / duration
+
 
 
     try:
@@ -56,6 +60,8 @@ def compute_network_burst_features(analyzer, **burst_params):
         features["burst_intra_burst_firing_rate"] = intra_burst_spikes / (
             intra_burst_time * n_units
         )
+        features["burst_intra_burst_firing_rate_norm"] = features["burst_intra_burst_firing_rate"]/fr
+ 
 
         inter_burst_spikes = 0
         inter_burst_time = 0
@@ -68,6 +74,7 @@ def compute_network_burst_features(analyzer, **burst_params):
         features["burst_inter_burst_firing_rate"] = inter_burst_spikes / (
             inter_burst_time * n_units
         )
+        features["burst_inter_burst_firing_rate_norm"] = features["burst_inter_burst_firing_rate"]/fr
 
         rise_times = []
         decay_times = []
@@ -154,13 +161,22 @@ def compute_unit_features(analyzer):
             }
         )
 
+    
     features = pd.DataFrame(features, index=analyzer.unit_ids)
+
+
+    bin_width=0.010
+    _,bst = binned_firing_rate(analyzer.sorting)
+    signal = neo.AnalogSignal(bst, units='mV',sampling_rate=(1/bin_width)*pq.Hz)
+    spiketrains = list(sorting_to_neo(sorting).spiketrains)
+    stavg = spike_triggered_average(signal,spiketrains, (-(bin_width/2) * pq.s, bin_width * pq.s))
+    stavg = np.mean(stavg, axis=0)
+    features["unit_spike_triggered_avg"] = stavg
     return features
 
 
 def compute_network_features(analyzer):
     features = dict()
-
     seg = sorting_to_neo(analyzer.sorting)
     features["network_spike_contrast"], sc_props = spike_contrast(
         list(seg.spiketrains), return_trace=True
