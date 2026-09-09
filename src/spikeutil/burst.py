@@ -13,8 +13,8 @@ def detect_bursts(
         sorting,
         method='participation',
         remove_tonic=False,
-        merge_interval=0.200,
-        min_burst_duration=0.300,
+        merge_interval=0.100,
+        min_burst_duration=0.0,
         tonic_kwargs=None,
         method_kwargs=None
     ):
@@ -129,9 +129,9 @@ def detect_tonic_units(sorting, censor_period=None, min_firing_rate=1, score_thr
     return np.hstack([quiet_units, tonic_units])
 
 
-def detect_bursts_participation(sorting, bin_width=0.100, smooth_sigma=2, thresh_Z=1):
+def detect_bursts_participation(sorting, bin_width=0.050, smooth_sigma=10, thresh_Z=1):
     n_spikes, n_units = participation_bins(sorting, bin_width=bin_width)
-    stat = n_spikes*n_units
+    stat = np.sqrt(n_spikes*n_units)
     stat = scipy.ndimage.gaussian_filter(stat, sigma=smooth_sigma)
 
     spread = 1.4826*scipy.stats.median_abs_deviation(stat)
@@ -174,7 +174,7 @@ def participation_bins(sorting, bin_width=0.100):
 def isi_N_params(
     sorting,
     exclude_tonic=True,
-    Ns=128,
+    Ns=122,
     logisi_kwargs=None,
     return_hists=False ,
     prominence_tol=1e-4,

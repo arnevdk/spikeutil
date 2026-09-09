@@ -10,7 +10,7 @@ from spikeutil.analysis import binned_spike_train
 from spikeutil.burst import detect_bursts
 from spikeutil.core import inst_firing_rate, sorting_to_neo,binned_firing_rate
 from elephant.sta import spike_triggered_average
-
+import scipy.signal
 
 
 def compute_qm_features(analyzer):
@@ -185,6 +185,13 @@ def compute_network_features(analyzer):
         sc_props.bin_size[np.argmax(sc_props.contrast)]
     )
 
+    fr, sfreq = inst_firing_rate(
+        analyzer.sorting, coactivity=True, normalize=True
+    )
+ 
+    f, psd = scipy.signal.welch(fr, fs=sfreq, nperseg=2**16)
+    features["network_psd_peak_power"] = np.max(psd)
+    features["network_psd_peak_freq"] =  f[np.argmax(psd)]
     return features
 
 
