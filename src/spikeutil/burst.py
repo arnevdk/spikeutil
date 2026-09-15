@@ -13,8 +13,8 @@ def detect_bursts(
         sorting,
         method='participation',
         remove_tonic=False,
-        merge_interval=0.100,
-        min_burst_duration=0.0,
+        merge_interval=0.200,
+        min_burst_duration=0.200,
         tonic_kwargs=None,
         method_kwargs=None
     ):
@@ -128,11 +128,24 @@ def detect_tonic_units(sorting, censor_period=None, min_firing_rate=1, score_thr
     tonic_units = sorting.unit_ids[is_tonic]
     return np.hstack([quiet_units, tonic_units])
 
+import scipy.signal
+def butter_highpass(cutoff, fs, order=5):
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff / nyq
+    b, a = scipy.signal.butter(order, normal_cutoff, btype='high', analog=False)
+    return b, a
 
-def detect_bursts_participation(sorting, bin_width=0.050, smooth_sigma=10, thresh_Z=1):
+def butter_highpass_filter(data, cutoff, fs, order=5):
+    b, a = butter_highpass(cutoff, fs, order=order)
+    y = scipy.signal.filtfilt(b, a, data)
+    return y
+
+def detect_bursts_participation(sorting, bin_width=0.050, smooth_sigma=4, thresh_Z=3):
     n_spikes, n_units = participation_bins(sorting, bin_width=bin_width)
-    stat = np.sqrt(n_spikes*n_units)
+    stat = n_spikes*n_units
     stat = scipy.ndimage.gaussian_filter(stat, sigma=smooth_sigma)
+
+    #stat = butter_highpass(stat,1/bin_width)
 
     spread = 1.4826*scipy.stats.median_abs_deviation(stat)
     baseline = np.median(stat)

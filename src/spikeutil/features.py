@@ -40,10 +40,10 @@ def compute_network_burst_features(analyzer, **burst_params):
         # Get burst time features
         features["burst_rate"] = len(bursts) / duration
         burst_duration = bursts[:, 1] - bursts[:, 0]
-        features["burst_duration_mean"] = np.mean(burst_duration)
+        features["burst_duration_median"] = np.median(burst_duration)
         features["burst_duration_var"] = np.var(burst_duration)
         features["burst_total_time"] = np.sum(burst_duration) / duration
-        features["burst_inter_burst_interval_mean"] = np.nanmean(
+        features["burst_inter_burst_interval_median"] = np.nanmedian(
             bursts[1:, 0] - bursts[:-1, 1]
         )
         features["burst_inter_burst_interval_var"] = np.nanvar(
@@ -87,8 +87,8 @@ def compute_network_burst_features(analyzer, **burst_params):
             t_peak = time[np.argmax(fr)]
             rise_times.append(t_peak - t_start)
             decay_times.append(t_stop - t_peak)
-        features["burst_rise_time"] = np.mean(rise_times)
-        features["burst_decay_time"] = np.mean(decay_times)
+        features["burst_rise_time"] = np.median(rise_times)
+        features["burst_decay_time"] = np.median(decay_times)
         return features
     except RuntimeError:
         return dict()

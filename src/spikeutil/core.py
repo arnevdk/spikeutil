@@ -9,9 +9,12 @@ from elephant.kernels import GaussianKernel
 from elephant.statistics import instantaneous_rate
 
 
-def sorting_to_neo(sorting):
-    t_stop = sorting.to_spike_vector()[-1]["sample_index"]
-    t_stop = sorting.sample_index_to_time(t_stop)
+def sorting_to_neo(sorting, t_stop=None):
+    if t_stop is None:
+        t_stop = sorting.to_spike_vector()[-1]["sample_index"]
+        t_stop = sorting.sample_index_to_time(t_stop)
+    else:
+        sorting = sorting.time_slice(0,t_stop)
 
     sfreq = sorting.get_sampling_frequency()
 
