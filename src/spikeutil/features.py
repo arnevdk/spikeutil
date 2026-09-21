@@ -166,10 +166,10 @@ def compute_unit_features(analyzer):
 
 
     bin_width=0.010
-    _,bst = binned_firing_rate(analyzer.sorting)
+    _,bst = binned_firing_rate(analyzer.sorting, bin_width=bin_width)
     signal = neo.AnalogSignal(bst, units='mV',sampling_rate=(1/bin_width)*pq.Hz)
     spiketrains = list(sorting_to_neo(sorting).spiketrains)
-    stavg = spike_triggered_average(signal,spiketrains, (-(bin_width/2) * pq.s, bin_width * pq.s))
+    stavg = spike_triggered_average(signal,spiketrains, (-bin_width * pq.s, bin_width * pq.s))
     stavg = np.mean(stavg, axis=0)
     features["unit_spike_triggered_avg"] = stavg
     return features

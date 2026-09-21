@@ -140,7 +140,7 @@ def butter_highpass_filter(data, cutoff, fs, order=5):
     y = scipy.signal.filtfilt(b, a, data)
     return y
 
-def detect_bursts_participation(sorting, bin_width=0.050, smooth_sigma=4, thresh_Z=3):
+def detect_bursts_participation(sorting, bin_width=0.050, smooth_sigma=4, thresh_Z=2.5):
     n_spikes, n_units = participation_bins(sorting, bin_width=bin_width)
     stat = n_spikes*n_units
     stat = scipy.ndimage.gaussian_filter(stat, sigma=smooth_sigma)
