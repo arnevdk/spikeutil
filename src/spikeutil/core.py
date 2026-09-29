@@ -9,7 +9,8 @@ from elephant.kernels import GaussianKernel
 from elephant.statistics import instantaneous_rate
 
 
-def sorting_to_neo(sorting, t_stop=None):
+def sorting_to_neo(sorting, t_stop=None, merge=False):
+    # TODO deduplicate code by defining list of spiketrains first
     if t_stop is None:
         t_stop = sorting.to_spike_vector()[-1]["sample_index"]
         t_stop = sorting.sample_index_to_time(t_stop)
@@ -19,8 +20,23 @@ def sorting_to_neo(sorting, t_stop=None):
     sfreq = sorting.get_sampling_frequency()
 
     seg = neo.Segment()
-    for unit_id in sorting.get_unit_ids():
-        spike_train = sorting.get_unit_spike_train_in_seconds(unit_id)
+    if not merge:
+        for unit_id in sorting.get_unit_ids():
+            spike_train = sorting.get_unit_spike_train_in_seconds(unit_id)
+            spike_train_neo = neo.SpikeTrain(
+                spike_train,
+                t_stop=t_stop,
+                units=pq.s,
+                sampling_rate=sfreq * pq.Hz,
+                name=unit_id,
+            )
+            seg.spiketrains.append(spike_train_neo)
+    else:
+        spike_trains = []
+        for unit_id in sorting.get_unit_ids():
+            spike_trains.append(sorting.get_unit_spike_train_in_seconds(unit_id))
+        spike_train = np.concatenate(spike_trains)
+        spike_train = np.sort(spike_train)
         spike_train_neo = neo.SpikeTrain(
             spike_train,
             t_stop=t_stop,
@@ -29,6 +45,7 @@ def sorting_to_neo(sorting, t_stop=None):
             name=unit_id,
         )
         seg.spiketrains.append(spike_train_neo)
+ 
 
     return seg
 

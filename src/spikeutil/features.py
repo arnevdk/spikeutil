@@ -135,6 +135,11 @@ def compute_unit_features(analyzer):
 
         acg_pred = acg_fit(lags_pos, *params)
 
+        try:
+            unit_acg_fit_r2 = r2_score(acg_pos, acg_pred)
+        except ValueError as e:
+            print(e)
+            unit_acg_fit_r2 = np.nan
         features.append(
             {
                 "unit_isi_mean": np.mean(isi),
@@ -153,7 +158,7 @@ def compute_unit_features(analyzer):
                 "unit_acg_fit_h": params[5],
                 "unit_acg_fit_tau_burst": params[6],
                 "unit_acg_fit_rate_asymptote": params[7],
-                "unit_acg_fit_r2": r2_score(acg_pos, acg_pred),
+                "unit_acg_fit_r2": unit_acg_fit_r2,
                 "unit_acg_bust_index_royer2012": burst_index_royer2012,
                 "unit_fr_var_coeff": np.var(bst) / fr,
                 # "unit_fr_gini": gini(bst),
@@ -164,14 +169,6 @@ def compute_unit_features(analyzer):
     
     features = pd.DataFrame(features, index=analyzer.unit_ids)
 
-
-    bin_width=0.010
-    _,bst = binned_firing_rate(analyzer.sorting, bin_width=bin_width)
-    signal = neo.AnalogSignal(bst, units='mV',sampling_rate=(1/bin_width)*pq.Hz)
-    spiketrains = list(sorting_to_neo(sorting).spiketrains)
-    stavg = spike_triggered_average(signal,spiketrains, (-bin_width * pq.s, bin_width * pq.s))
-    stavg = np.mean(stavg, axis=0)
-    features["unit_spike_triggered_avg"] = stavg
     return features
 
 
@@ -270,16 +267,21 @@ def fit_acg(lags, acg):
         [0, 0, 1e-12, -np.inf, 1e-12, -np.inf, 1e-12, 0],
         [np.inf, np.max(lags), 1e3, np.inf, 1e3, np.inf, 1e3, max(1, np.max(acg))],
     )
-    res = scipy.optimize.curve_fit(
-        acg_fit,
-        lags,
-        acg,
-        p0=init,
-        bounds=bounds,
-        jac=acg_jac,
-        maxfev=int(1e3 * (len(acg) + 1)),
-    )
-    params = res[0]
+     
+    try:
+        res = scipy.optimize.curve_fit(
+            acg_fit,
+            lags,
+            acg,
+            p0=init,
+            bounds=bounds,
+            jac=acg_jac,
+            maxfev=int(1e3 * (len(acg) + 1)),
+        )
+        params = res[0]
+    except ValueError as e:
+        print(e)
+        params = np.full(8, np.nan)
     return params
 
 
