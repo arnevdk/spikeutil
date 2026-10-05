@@ -54,6 +54,7 @@ def compute_network_burst_features(analyzer, **burst_params):
         intra_burst_time = 0
         for t_start, t_stop in bursts:
             intra_burst_sorting = sorting.time_slice(t_start, t_stop)
+            intra_burst_sorting.shift_times(-t_start)
             n_spikes = intra_burst_sorting.count_total_num_spikes()
             intra_burst_spikes += n_spikes
             intra_burst_time += t_stop - t_start
@@ -68,6 +69,7 @@ def compute_network_burst_features(analyzer, **burst_params):
         inter_bursts = np.hstack([bursts[:-1, [1]], bursts[1:, [0]]])
         for t_start, t_stop in inter_bursts:
             inter_burst_sorting = sorting.time_slice(t_start, t_stop)
+            inter_burst_sorting.shift_times(-t_start)
             n_spikes = inter_burst_sorting.count_total_num_spikes()
             inter_burst_spikes += n_spikes
             inter_burst_time += t_stop - t_start
@@ -80,13 +82,14 @@ def compute_network_burst_features(analyzer, **burst_params):
         decay_times = []
         for t_start, t_stop in bursts:
             intra_burst_sorting = sorting.time_slice(t_start, t_stop)
+            intra_burst_sorting.shift_times(-t_start)
             fr, sfreq = inst_firing_rate(
                 intra_burst_sorting, coactivity=True, normalize=True
             )
-            time = np.arange(len(fr)) / sfreq + t_start
+            time = np.arange(len(fr)) / sfreq
             t_peak = time[np.argmax(fr)]
-            rise_times.append(t_peak - t_start)
-            decay_times.append(t_stop - t_peak)
+            rise_times.append(t_peak)
+            decay_times.append(time[-1] - t_peak)
         features["burst_rise_time"] = np.median(rise_times)
         features["burst_decay_time"] = np.median(decay_times)
         return features
@@ -159,7 +162,7 @@ def compute_unit_features(analyzer):
                 "unit_acg_fit_tau_burst": params[6],
                 "unit_acg_fit_rate_asymptote": params[7],
                 "unit_acg_fit_r2": unit_acg_fit_r2,
-                "unit_acg_bust_index_royer2012": burst_index_royer2012,
+                "unit_acg_buirst_index_royer2012": burst_index_royer2012,
                 "unit_fr_var_coeff": np.var(bst) / fr,
                 # "unit_fr_gini": gini(bst),
                 "unit_fr_instability": np.mean(np.abs(np.diff(bst))) / fr,
