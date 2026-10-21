@@ -147,7 +147,7 @@ def compute_unit_features(analyzer):
             {
                 "unit_isi_mean": np.mean(isi),
                 "unit_isi_median": np.median(isi),
-                "unit_isi_var": np.median(isi),
+                "unit_isi_var": np.std(isi),
                 "unit_isi_var_coeff": np.std(isi) / np.mean(isi),
                 "unit_isi_var_coeff2": np.mean(
                     2 * np.abs(isi[1:] - isi[:-1]) / (isi[1:] + isi[:-1])
@@ -162,7 +162,7 @@ def compute_unit_features(analyzer):
                 "unit_acg_fit_tau_burst": params[6],
                 "unit_acg_fit_rate_asymptote": params[7],
                 "unit_acg_fit_r2": unit_acg_fit_r2,
-                "unit_acg_buirst_index_royer2012": burst_index_royer2012,
+                "unit_acg_burst_index_royer2012": burst_index_royer2012,
                 "unit_fr_var_coeff": np.var(bst) / fr,
                 # "unit_fr_gini": gini(bst),
                 "unit_fr_instability": np.mean(np.abs(np.diff(bst))) / fr,

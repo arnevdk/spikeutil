@@ -4,7 +4,7 @@ import scipy.signal.windows
 import scipy.stats
 import spikeinterface.curation as sc
 import spikeinterface.metrics as sm
-import ot
+#import ot
 import scipy.ndimage
 from spikeutil.math import smoothen, wasserstein_centroid
 

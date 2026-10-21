@@ -73,25 +73,22 @@ def binned_firing_rate(sorting, bin_width=0.005, t_stop=None, normalize_width=Tr
 def inst_firing_rate(
     sorting, kernel_sigma=0.1, sfreq=500, coactivity=True, t_max=None, normalize=True
 ):
-    if not coactivity:
-        raise NotImplemented
-
     n_units = len(sorting.unit_ids)
-    st = sorting.to_spike_vector()
-    st = sorting.sample_index_to_time(st["sample_index"])
-    if t_max is None:
-        t_max = st[-1]
-    n_bins = int(t_max * sfreq)
-    bins = np.linspace(0, t_max, n_bins)
-    binned_fr, bins = np.histogram(st, bins=bins)
+    t_end = sorting.get_times()[-1]
+    bins = np.linspace(0, t_end, int(round(t_end*sfreq)))
+    fr = np.empty((n_units,len(bins)-1))
     sigma = kernel_sigma * sfreq
-    binned_fr = binned_fr.astype(np.float64)
-    inst_rate = scipy.ndimage.gaussian_filter1d(binned_fr, sigma)
-    if normalize:
-        inst_rate /= n_units
+    for i, unit_id in enumerate(sorting.unit_ids):
+        st = sorting.get_unit_spike_train_in_seconds(unit_id)
+        fr[i,:], bins = np.histogram(st, bins=bins)
 
-    return inst_rate, sfreq
+    fr = fr.astype(np.float64)
+    fr = scipy.ndimage.gaussian_filter1d(fr, sigma)
 
+    if coactivity:
+        fr =  np.mean(fr, axis=0)
+
+    return fr, sfreq
 
 # def inst_firing_rate(
 #    sorting, kernel_sigma=0.1, sfreq=500, coactivity=False, t_max=None
